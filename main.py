@@ -31,7 +31,6 @@ engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 
 class AppConfig(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    upstream_base_url: str = Field(default="https://httpbin.org")
     default_timeout_seconds: float = Field(default=15.0)
 
 
@@ -82,20 +81,8 @@ def _normalize_base_url(url: str) -> str:
     return u
 
 
-# 读取上游 API 基础地址与默认超时从环境变量（可运行时覆盖）
-UPSTREAM_BASE_URL = os.getenv("UPSTREAM_BASE_URL", "https://httpbin.org")
+# 读取默认超时从环境变量
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("UPSTREAM_TIMEOUT", "15"))
-
-
-# 复用一个 httpx.AsyncClient，尽量避免每次请求新建连接
-async_client: httpx.AsyncClient | None = None
-
-
-async def get_async_client() -> httpx.AsyncClient:
-    global async_client
-    if async_client is None or async_client.is_closed:
-        async_client = httpx.AsyncClient(base_url=UPSTREAM_BASE_URL, timeout=DEFAULT_TIMEOUT_SECONDS)
-    return async_client
 
 
 @app.get("/health", operation_id="health")
@@ -106,7 +93,7 @@ async def health() -> Dict[str, str]:
 @app.post(
     "/proxy",
     operation_id="proxy_call",
-    summary="转发任意上游 HTTP 接口并返回结果",
+    summary="调用注册的 HTTP 服务接口并返回结果",
 )
 async def proxy_call(
     method: Optional[str] = Body(default=None, embed=True, description="HTTP 方法，如 GET/POST/PUT/DELETE；若使用 service_id 可不填以采用默认"),
@@ -126,6 +113,22 @@ async def proxy_call(
     if service_id is None:
         raise HTTPException(status_code=400, detail="必须指定 service_id 来调用注册的服务")
     
+    # 处理MCP调用时的数据格式问题
+    # 如果参数是字符串形式的JSON，则解析它
+    if isinstance(params, str):
+        try:
+            import json
+            params = json.loads(params)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="无效的JSON格式参数")
+    
+    if isinstance(json, str):
+        try:
+            import json as pyjson
+            json = pyjson.loads(json)
+        except pyjson.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="无效的JSON格式数据")
+    
     with Session(engine) as session:
         svc = mcp_service_manager.get_service(service_id, session)
         # 如果未显式传入 method/params，则应用服务默认
@@ -134,14 +137,22 @@ async def proxy_call(
         if not params and svc.request_params:
             params = dict(svc.request_params)
 
-        client = httpx.AsyncClient(base_url=svc.url, timeout=DEFAULT_TIMEOUT_SECONDS)
+        # 构建完整的基础URL：服务地址
+        base_url = svc.url
+        # 去掉服务地址末尾的斜杠
+        if base_url.endswith('/'):
+            base_url = base_url[:-1]
+        
+        client = httpx.AsyncClient(base_url=base_url, timeout=DEFAULT_TIMEOUT_SECONDS)
         close_after = True
 
     try:
         req_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT_SECONDS
+        # 使用服务配置中的service_path作为请求路径
+        request_path = svc.service_path if svc.service_path else path
         resp = await client.request(
             method_upper,
-            path,
+            request_path,
             headers=headers,
             params=params,
             json=json,
@@ -171,7 +182,6 @@ async def proxy_call(
 # 配置 API
 # =============================
 class ConfigIn(SQLModel):
-    upstream_base_url: Optional[str] = None
     default_timeout_seconds: Optional[float] = None
 
 
@@ -186,27 +196,15 @@ def get_config(session: Session = Depends(get_db)) -> AppConfig:
 def update_config(data: ConfigIn, session: Session = Depends(get_db)) -> AppConfig:
     cfg = session.exec(select(AppConfig)).first()
     assert cfg is not None
-    if data.upstream_base_url is not None:
-        cfg.upstream_base_url = data.upstream_base_url
     if data.default_timeout_seconds is not None:
         cfg.default_timeout_seconds = float(data.default_timeout_seconds)
     session.add(cfg)
     session.commit()
     session.refresh(cfg)
 
-    # 同步更新运行时的 httpx client 配置
-    global UPSTREAM_BASE_URL, DEFAULT_TIMEOUT_SECONDS, async_client
-    UPSTREAM_BASE_URL = cfg.upstream_base_url
+    # 同步更新运行时的超时配置
+    global DEFAULT_TIMEOUT_SECONDS
     DEFAULT_TIMEOUT_SECONDS = cfg.default_timeout_seconds
-    if async_client is not None and not async_client.is_closed:
-        try:
-            awaitable_close = getattr(async_client, "aclose", None)
-            if awaitable_close is not None:
-                import anyio
-                anyio.run(async_client.aclose)
-        except Exception:
-            pass
-        async_client = None
 
     return cfg
 
@@ -229,7 +227,7 @@ app.include_router(service_router)
 @app.get(
     "/tools",
     operation_id="tools",
-    summary="查询用户已添加的API服务列表",
+    summary="查询用户已注册的API服务列表",
 )
 def get_tools(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """获取所有可用的工具（服务）列表"""

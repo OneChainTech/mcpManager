@@ -17,7 +17,8 @@ class UpstreamServiceBase(SQLModel):
     name: str
     summary: str
     url: str
-    method: str = "GET"
+    service_path: str = Field(default="")
+    method: str = Field(default="GET")
     request_params: dict | None = Field(default=None, sa_column=Column(SAJSON))
     response_params: dict | None = Field(default=None, sa_column=Column(SAJSON))
 
@@ -32,6 +33,7 @@ class UpstreamServiceCreateIn(BaseModel):
     name: str
     summary: str
     url: str
+    service_path: Optional[str] = ""
     method: Optional[str] = "GET"
     request_params: Optional[Union[str, Dict[str, Any]]] = None
     response_params: Optional[Union[str, Dict[str, Any]]] = None
@@ -42,6 +44,7 @@ class UpstreamServiceUpdateIn(BaseModel):
     name: Optional[str] = None
     summary: Optional[str] = None
     url: Optional[str] = None
+    service_path: Optional[str] = None
     method: Optional[str] = None
     request_params: Optional[Union[str, Dict[str, Any]]] = None
     response_params: Optional[Union[str, Dict[str, Any]]] = None
@@ -99,19 +102,16 @@ class MCPServiceManager:
         name = payload.get("name", "")
         summary = payload.get("summary", "")
         url = _normalize_base_url(payload.get("url", ""))
+        service_path = payload.get("service_path", "").strip()
         method = (payload.get("method") or "GET").upper()
         request_params = _parse_json_params(payload.get("request_params"))
         response_params = _parse_json_params(payload.get("response_params"))
-
-        # 地址去重检查
-        exists = session.exec(select(UpstreamService).where(UpstreamService.url == url)).first()
-        if exists is not None:
-            raise HTTPException(status_code=400, detail="服务地址已存在")
 
         svc = UpstreamService(
             name=name,
             summary=summary,
             url=url,
+            service_path=service_path,
             method=method,
             request_params=request_params,
             response_params=response_params,
@@ -132,12 +132,9 @@ class MCPServiceManager:
         if "summary" in payload:
             svc.summary = payload.get("summary") or svc.summary
         if "url" in payload:
-            new_url = _normalize_base_url(payload.get("url") or svc.url)
-            # 与其他记录去重
-            exists = session.exec(select(UpstreamService).where(UpstreamService.url == new_url, UpstreamService.id != service_id)).first()
-            if exists is not None:
-                raise HTTPException(status_code=400, detail="服务地址已存在")
-            svc.url = new_url
+            svc.url = _normalize_base_url(payload.get("url") or svc.url)
+        if "service_path" in payload:
+            svc.service_path = (payload.get("service_path") or "").strip()
         if "method" in payload:
             hm = payload.get("method")
             if hm is not None:
@@ -172,6 +169,7 @@ class MCPServiceManager:
                 "name": service.name,
                 "summary": service.summary,
                 "url": service.url,
+                "service_path": service.service_path,
                 "method": service.method,
                 "request_params": service.request_params or {},
                 "response_params": service.response_params or {}

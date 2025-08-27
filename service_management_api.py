@@ -31,7 +31,9 @@ def get_db():
     """获取数据库会话"""
     if mcp_service_manager is None:
         raise HTTPException(status_code=500, detail="服务管理器未初始化")
-    return mcp_service_manager.get_db()
+    # 使用服务管理器的get_db方法，但正确处理生成器
+    for session in mcp_service_manager.get_db():
+        yield session
 
 @router.get("/services", response_model=List[UpstreamService])
 def list_services_api(session: Session = Depends(get_db)) -> List[UpstreamService]:
