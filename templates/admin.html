@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mcp服务管理</title>
+    <style>
+      body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      h1 { margin-bottom: 8px; }
+      .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+      label { display:block; margin: 8px 0 4px; }
+      input { padding: 8px; width: 100%; box-sizing: border-box; }
+      button { padding: 8px 12px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+      th { background: #f9fafb; }
+    </style>
+  </head>
+  <body>
+    <h1>mcp服务管理</h1>
+
+    <div class="card">
+      <form id="svcForm" style="margin-bottom:12px;">
+        <label>服务名称</label>
+        <input id="svcName" placeholder="example" />
+        <label>服务描述</label>
+        <input id="svcSummary" placeholder="服务功能描述" />
+        <label>服务地址</label>
+        <input id="svcUrl" placeholder="http://127.0.0.1:9001" />
+        <label>HTTP 方法</label>
+        <select id="svcMethod">
+          <option>GET</option>
+          <option>POST</option>
+        </select>
+        <label>请求参数（JSON）</label>
+        <input id="svcRequestParams" placeholder='{"message":"hi"}' />
+        <label>响应参数（JSON）</label>
+        <input id="svcResponseParams" placeholder='{"status":"success"}' />
+        <div style="margin-top:12px;">
+          <button type="submit">添加</button>
+          <span id="svcMsg" style="margin-left:8px;color:#059669;"></span>
+        </div>
+      </form>
+
+      <table>
+        <thead>
+          <tr><th>名称</th><th>描述</th><th>服务地址</th><th>方法</th><th>请求参数JSON</th><th>响应参数JSON</th><th>操作</th></tr>
+        </thead>
+        <tbody id="svcTbody"></tbody>
+      </table>
+    </div>
+
+    <script>
+
+
+      async function loadServices() {
+        const res = await fetch('/api/services');
+        const list = await res.json();
+        const tbody = document.getElementById('svcTbody');
+        tbody.innerHTML = '';
+        list.forEach(s => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><input value="${s.name}" data-id="${s.id}" data-field="name"/></td>
+            <td><input value="${s.summary || ''}" data-id="${s.id}" data-field="summary"/></td>
+            <td><input value="${s.url}" data-id="${s.id}" data-field="url"/></td>
+            <td>
+              <select data-id="${s.id}" data-field="method">
+                <option ${s.method==='GET'?'selected':''}>GET</option>
+                <option ${s.method==='POST'?'selected':''}>POST</option>
+              </select>
+            </td>
+            <td><input value='${JSON.stringify(s.request_params||{})}' data-id="${s.id}" data-field="request_params"/></td>
+            <td><input value='${JSON.stringify(s.response_params||{})}' data-id="${s.id}" data-field="response_params"/></td>
+            <td>
+              <button data-act="save" data-id="${s.id}">修改</button>
+              <button data-act="delete" data-id="${s.id}">删除</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const id = btn.getAttribute('data-id');
+            const act = btn.getAttribute('data-act');
+            if (act === 'delete') {
+              await fetch(`/api/services/${id}`, { method: 'DELETE' });
+              await loadServices();
+              return;
+            }
+            if (act === 'save') {
+              const rowInputs = Array.from(tbody.querySelectorAll(`input[data-id="${id}"]`));
+              const rowSelects = Array.from(tbody.querySelectorAll(`select[data-id="${id}"]`));
+              const payload = {};
+              rowInputs.forEach(inp => {
+                const field = inp.getAttribute('data-field');
+                let val = inp.value;
+                if (field === 'request_params' || field === 'response_params') {
+                  try { val = JSON.parse(val || '{}'); } catch(e) { val = {}; }
+                }
+                payload[field] = val;
+              });
+              rowSelects.forEach(sel => {
+                const field = sel.getAttribute('data-field');
+                payload[field] = sel.value;
+              });
+              await fetch(`/api/services/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              await loadServices();
+            }
+          });
+        });
+      }
+
+      async function addService(evt) {
+        evt.preventDefault();
+        const payload = {
+          name: document.getElementById('svcName').value,
+          summary: document.getElementById('svcSummary').value,
+          url: document.getElementById('svcUrl').value,
+          method: document.getElementById('svcMethod').value,
+          request_params: (function(){ try { return JSON.parse(document.getElementById('svcRequestParams').value||'{}'); } catch(e){ return {}; } })(),
+          response_params: (function(){ try { return JSON.parse(document.getElementById('svcResponseParams').value||'{}'); } catch(e){ return {}; } })()
+        };
+        const res = await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          document.getElementById('svcMsg').textContent = '已添加';
+          document.getElementById('svcForm').reset();
+          await loadServices();
+          setTimeout(()=> document.getElementById('svcMsg').textContent='', 1500);
+        }
+      }
+
+      
+      document.getElementById('svcForm').addEventListener('submit', addService);
+      
+      loadServices();
+    </script>
+  </body>
+</html>
