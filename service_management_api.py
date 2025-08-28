@@ -16,6 +16,9 @@ from mcp_service_manager import MCPServiceManager, UpstreamService
 # 创建路由器
 router = APIRouter(prefix="/api", tags=["服务管理"])
 
+# 创建管理页面路由器（无前缀）
+admin_router = APIRouter(tags=["管理页面"])
+
 # 模板
 templates = Jinja2Templates(directory="templates")
 
@@ -61,7 +64,7 @@ def delete_service_api(service_id: int, session: Session = Depends(get_db)) -> D
     return mcp_service_manager.delete_service(service_id, session)
 
 # 管理页面
-@router.get("/admin", response_class=HTMLResponse)
+@admin_router.get("/admin", response_class=HTMLResponse)
 def admin_page(request: Request) -> HTMLResponse:
     """管理页面"""
     return templates.TemplateResponse("admin.html", {"request": request})

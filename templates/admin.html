@@ -3,87 +3,214 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>mcp服务管理</title>
-    <style>
-      body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
-      h1 { margin-bottom: 8px; }
-      .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
-      label { display:block; margin: 8px 0 4px; }
-      input { padding: 8px; width: 100%; box-sizing: border-box; }
-      button { padding: 8px 12px; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
-      th { background: #f9fafb; }
-    </style>
+    <title>金融服务MCP管理平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { theme: { extend: { colors: { 'finance-blue': '#1e40af', 'finance-green': '#059669', 'finance-gold': '#d97706' } } } };
+    </script>
   </head>
-  <body>
-    <h1>mcp服务管理</h1>
+  <body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-slate-800">金融服务MCP管理平台</h1>
+      </div>
 
-    <div class="card">
-      <form id="svcForm" style="margin-bottom:12px;">
-        <label>服务名称</label>
-        <input id="svcName" placeholder="example" />
-        <label>服务描述</label>
-        <input id="svcSummary" placeholder="服务功能描述" />
-        <label>服务地址</label>
-        <input id="svcUrl" placeholder="http://127.0.0.1:9001" />
-        <label>服务路径</label>
-        <input id="svcServicePath" placeholder="/echo" />
-        <label>HTTP 方法</label>
-        <select id="svcMethod">
-          <option>GET</option>
-          <option>POST</option>
-        </select>
-        <label>请求参数（JSON）</label>
-        <input id="svcRequestParams" placeholder='{"message":"hi"}' />
-        <label>响应参数（JSON）</label>
-        <input id="svcResponseParams" placeholder='{"status":"success"}' />
-        <div style="margin-top:12px;">
-          <button type="submit">添加</button>
-          <span id="svcMsg" style="margin-left:8px;color:#059669;"></span>
+      <!-- 服务注册（默认收起） -->
+      <div class="bg-white rounded-2xl shadow p-6 border border-gray-100 mb-8">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-finance-green to-green-500 text-white flex items-center justify-center text-sm font-bold">SR</div>
+            <h2 class="text-xl font-semibold text-slate-800">服务注册</h2>
+          </div>
+          <button id="toggleForm" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm"><span id="toggleText">展开</span></button>
         </div>
-      </form>
+        <div id="serviceForm" class="hidden mt-6">
+          <form id="svcForm" class="space-y-6">
+            <!-- 第一行：服务名称 + 方法 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium mb-1">服务名称</label>
+                <input id="svcName" class="w-full border rounded px-3 py-2" placeholder="example-service" value="product-purchase" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">HTTP 方法</label>
+                <select id="svcMethod" class="w-full border rounded px-3 py-2">
+                  <option value="GET">GET</option>
+                  <option value="POST" selected>POST</option>
+                </select>
+              </div>
+            </div>
+            <!-- 第二行：服务地址 + 服务路径 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium mb-1">服务地址</label>
+                <input id="svcUrl" class="w-full border rounded px-3 py-2" placeholder="http://127.0.0.1:9001" value="http://127.0.0.1:9001" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">服务路径</label>
+                <input id="svcServicePath" class="w-full border rounded px-3 py-2" placeholder="/products" value="/purchase" />
+              </div>
+            </div>
+            <!-- 新增：请求头（JSON） -->
+            <div>
+              <label class="block text-sm font-medium mb-1">请求头（JSON）</label>
+              <textarea id="svcHeaders" class="w-full border rounded px-3 py-2 font-mono text-sm" rows="2" placeholder='{"Content-Type":"application/json"}'>{"Content-Type":"application/json"}</textarea>
+            </div>
+            <!-- 第三行：请求/响应参数 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium mb-1">请求参数（JSON）</label>
+                <textarea id="svcRequestParams" class="w-full border rounded px-3 py-2 font-mono text-sm" rows="3" placeholder='{
+  "product_id": string,
+  "user_id": string,
+  "amount": int
+}'>{
+  "product_id": "FUND001",
+  "user_id": "CURRENT_USER",
+  "amount": 10000,
+  "payment_method": "bank_transfer",
+  "risk_agreement": true
+}</textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">响应参数（JSON）</label>
+                <textarea id="svcResponseParams" class="w-full border rounded px-3 py-2 font-mono text-sm" rows="3" placeholder='{
+  "status": string,
+  "order_id": string
+}'>{
+  "service_name": "product-purchase",
+  "order_id": "ORDER_XXXX",
+  "product_id": "FUND001",
+  "amount": 10000,
+  "status": "processing",
+  "message": "订单已提交，正在处理中"
+}</textarea>
+              </div>
+            </div>
+            <!-- 第四行：描述 -->
+            <div>
+              <label class="block text-sm font-medium mb-1">服务描述</label>
+              <textarea id="svcSummary" class="w-full border rounded px-3 py-2" rows="3" placeholder="服务功能描述">理财产品购买服务，支持多种支付方式和风险协议确认</textarea>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+              <button type="submit" class="px-4 py-2 rounded bg-green-600 text-white">添加服务</button>
+              <button type="button" id="clearBtn" class="px-4 py-2 rounded bg-gray-600 text-white">清空</button>
+              <span id="svcMsg" class="text-sm text-green-700"></span>
+            </div>
+          </form>
+        </div>
+      </div>
 
-      <table>
-        <thead>
-          <tr><th>名称</th><th>描述</th><th>服务地址</th><th>服务路径</th><th>方法</th><th>请求参数JSON</th><th>响应参数JSON</th><th>操作</th></tr>
-        </thead>
-        <tbody id="svcTbody"></tbody>
-      </table>
+      <!-- 服务列表 -->
+      <div class="bg-white rounded-2xl shadow p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-finance-blue to-blue-600 text-white flex items-center justify-center text-sm font-bold">SL</div>
+            <h2 class="text-xl font-semibold text-slate-800">服务列表</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-slate-600">每页</label>
+            <select id="pageSize" class="border rounded px-2 py-1 text-sm">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            <button id="refreshBtn" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm">刷新</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 mb-2 text-sm">
+          <button id="prevPage" class="px-2 py-1 rounded border">上一页</button>
+          <span id="pageInfo" class="text-slate-600">第 1 页，共 1 页</span>
+          <button id="nextPage" class="px-2 py-1 rounded border">下一页</button>
+        </div>
+        <div class="relative">
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[1400px] text-sm">
+              <thead>
+                <tr class="text-left border-b bg-gray-50">
+                  <th class="px-3 py-2 min-w-[140px]">名称</th>
+                  <th class="px-3 py-2 min-w-[160px]">描述</th>
+                  <th class="px-3 py-2 min-w-[220px]">地址</th>
+                  <th class="px-3 py-2 min-w-[140px]">路径</th>
+                  <th class="px-3 py-2 min-w-[90px]">方法</th>
+                  <th class="px-3 py-2 min-w-[220px]">请求参数</th>
+                  <th class="px-3 py-2 min-w-[220px]">响应参数</th>
+                  <th class="px-3 py-2 min-w-[220px]">请求头</th>
+                  <th class="px-3 py-2 min-w-[140px] sticky right-0 bg-white">操作</th>
+                </tr>
+              </thead>
+              <tbody id="svcTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
+      // 状态
+      let allServices = [];
+      let currentPage = 1;
+      let pageSize = 10;
 
+      // 工具
+      function showMsg(el, text) { el.textContent = text; setTimeout(()=> el.textContent='', 1500); }
+      function parseJSONSafe(str, fallback) { try { return JSON.parse(str || ''); } catch { return fallback; } }
 
+      // 加载/渲染
       async function loadServices() {
         const res = await fetch('/api/services');
-        const list = await res.json();
+        allServices = await res.json();
+        currentPage = Math.min(currentPage, Math.max(1, Math.ceil(allServices.length / pageSize) || 1));
+        renderServices();
+        updatePagination();
+      }
+
+      function renderServices() {
         const tbody = document.getElementById('svcTbody');
         tbody.innerHTML = '';
-        list.forEach(s => {
+        const start = (currentPage - 1) * pageSize;
+        const pageItems = allServices.slice(start, start + pageSize);
+        pageItems.forEach(s => {
           const tr = document.createElement('tr');
+          tr.className = 'border-b last:border-b-0';
+          const headersJson = JSON.stringify(s.headers || {}, null, 2);
           tr.innerHTML = `
-            <td><input value="${s.name}" data-id="${s.id}" data-field="name"/></td>
-            <td><input value="${s.summary || ''}" data-id="${s.id}" data-field="summary"/></td>
-            <td><input value="${s.url}" data-id="${s.id}" data-field="url"/></td>
-            <td><input value="${s.service_path || ''}" data-id="${s.id}" data-field="service_path"/></td>
-            <td>
-              <select data-id="${s.id}" data-field="method">
-                <option ${s.method==='GET'?'selected':''}>GET</option>
-                <option ${s.method==='POST'?'selected':''}>POST</option>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1" value="${s.name}" data-id="${s.id}" data-field="name"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1" value="${s.summary || ''}" data-id="${s.id}" data-field="summary"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs" value="${s.url}" data-id="${s.id}" data-field="url"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs" value="${s.service_path || ''}" data-id="${s.id}" data-field="service_path"></td>
+            <td class="px-3 py-2">
+              <select class="w-full border rounded px-2 py-1" data-id="${s.id}" data-field="method">
+                <option value="GET" ${s.method==='GET'?'selected':''}>GET</option>
+                <option value="POST" ${s.method==='POST'?'selected':''}>POST</option>
               </select>
             </td>
-            <td><input value='${JSON.stringify(s.request_params||{})}' data-id="${s.id}" data-field="request_params"/></td>
-            <td><input value='${JSON.stringify(s.response_params||{})}' data-id="${s.id}" data-field="response_params"/></td>
-            <td>
-              <button data-act="save" data-id="${s.id}">修改</button>
-              <button data-act="delete" data-id="${s.id}">删除</button>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs" rows="2" data-id="${s.id}" data-field="request_params">${JSON.stringify(s.request_params||{}, null, 2)}</textarea></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs" rows="2" data-id="${s.id}" data-field="response_params">${JSON.stringify(s.response_params||{}, null, 2)}</textarea></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs" rows="2" data-id="${s.id}" data-field="headers">${headersJson}</textarea></td>
+            <td class="px-3 py-2 sticky right-0 bg-white">
+              <div class="flex items-center gap-2">
+                <button class="px-2 py-1 rounded bg-green-600 text-white text-xs" data-act="save" data-id="${s.id}">保存</button>
+                <button class="px-2 py-1 rounded bg-red-600 text-white text-xs" data-act="delete" data-id="${s.id}">删除</button>
+              </div>
             </td>`;
           tbody.appendChild(tr);
         });
+        bindRowActions();
+      }
 
+      function updatePagination() {
+        const totalPages = Math.max(1, Math.ceil(allServices.length / pageSize));
+        document.getElementById('pageInfo').textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+        document.getElementById('prevPage').disabled = currentPage <= 1;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages;
+      }
+
+      function bindRowActions() {
+        const tbody = document.getElementById('svcTbody');
         tbody.querySelectorAll('button').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
+          btn.onclick = async (e) => {
             e.preventDefault();
             const id = btn.getAttribute('data-id');
             const act = btn.getAttribute('data-act');
@@ -93,32 +220,30 @@
               return;
             }
             if (act === 'save') {
-              const rowInputs = Array.from(tbody.querySelectorAll(`input[data-id="${id}"]`));
-              const rowSelects = Array.from(tbody.querySelectorAll(`select[data-id="${id}"]`));
+              const inputs = Array.from(tbody.querySelectorAll(`input[data-id="${id}"]`));
+              const textareas = Array.from(tbody.querySelectorAll(`textarea[data-id="${id}"]`));
+              const selects = Array.from(tbody.querySelectorAll(`select[data-id="${id}"]`));
               const payload = {};
-              rowInputs.forEach(inp => {
-                const field = inp.getAttribute('data-field');
-                let val = inp.value;
-                if (field === 'request_params' || field === 'response_params') {
-                  try { val = JSON.parse(val || '{}'); } catch(e) { val = {}; }
-                }
-                payload[field] = val;
+              inputs.forEach(inp => {
+                const f = inp.getAttribute('data-field');
+                payload[f] = inp.value;
               });
-              rowSelects.forEach(sel => {
-                const field = sel.getAttribute('data-field');
-                payload[field] = sel.value;
+              textareas.forEach(ta => {
+                const f = ta.getAttribute('data-field');
+                payload[f] = (f === 'request_params' || f === 'response_params' || f === 'headers') ? parseJSONSafe(ta.value, {}) : ta.value;
               });
-              await fetch(`/api/services/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+              selects.forEach(sel => {
+                const f = sel.getAttribute('data-field');
+                payload[f] = sel.value;
               });
+              await fetch(`/api/services/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
               await loadServices();
             }
-          });
+          };
         });
       }
 
+      // 添加服务
       async function addService(evt) {
         evt.preventDefault();
         const payload = {
@@ -127,26 +252,35 @@
           url: document.getElementById('svcUrl').value,
           service_path: document.getElementById('svcServicePath').value,
           method: document.getElementById('svcMethod').value,
-          request_params: (function(){ try { return JSON.parse(document.getElementById('svcRequestParams').value||'{}'); } catch(e){ return {}; } })(),
-          response_params: (function(){ try { return JSON.parse(document.getElementById('svcResponseParams').value||'{}'); } catch(e){ return {}; } })()
+          request_params: parseJSONSafe(document.getElementById('svcRequestParams').value, {}),
+          response_params: parseJSONSafe(document.getElementById('svcResponseParams').value, {}),
+          headers: parseJSONSafe(document.getElementById('svcHeaders').value, {})
         };
-        const res = await fetch('/api/services', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        const res = await fetch('/api/services', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (res.ok) {
-          document.getElementById('svcMsg').textContent = '已添加';
+          showMsg(document.getElementById('svcMsg'), '已添加');
           document.getElementById('svcForm').reset();
           await loadServices();
-          setTimeout(()=> document.getElementById('svcMsg').textContent='', 1500);
         }
       }
 
-      
+      // 事件绑定
       document.getElementById('svcForm').addEventListener('submit', addService);
-      
-      loadServices();
+      document.getElementById('clearBtn').addEventListener('click', () => document.getElementById('svcForm').reset());
+      document.getElementById('refreshBtn').addEventListener('click', loadServices);
+      document.getElementById('pageSize').addEventListener('change', () => { pageSize = parseInt(document.getElementById('pageSize').value||'10'); currentPage = 1; renderServices(); updatePagination(); });
+      document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderServices(); updatePagination(); } });
+      document.getElementById('nextPage').addEventListener('click', () => { const totalPages = Math.max(1, Math.ceil(allServices.length / pageSize)); if (currentPage < totalPages) { currentPage++; renderServices(); updatePagination(); } });
+      document.getElementById('toggleForm').addEventListener('click', () => {
+        const form = document.getElementById('serviceForm');
+        const t = document.getElementById('toggleText');
+        const isHidden = form.classList.contains('hidden');
+        if (isHidden) { form.classList.remove('hidden'); t.textContent = '收起'; }
+        else { form.classList.add('hidden'); t.textContent = '展开'; }
+      });
+
+      // 初始化
+      window.onload = loadServices;
     </script>
   </body>
 </html>

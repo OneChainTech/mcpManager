@@ -21,6 +21,7 @@ class UpstreamServiceBase(SQLModel):
     method: str = Field(default="GET")
     request_params: dict | None = Field(default=None, sa_column=Column(SAJSON))
     response_params: dict | None = Field(default=None, sa_column=Column(SAJSON))
+    headers: dict | None = Field(default=None, sa_column=Column(SAJSON))
 
 
 class UpstreamService(UpstreamServiceBase, table=True):
@@ -37,6 +38,7 @@ class UpstreamServiceCreateIn(BaseModel):
     method: Optional[str] = "GET"
     request_params: Optional[Union[str, Dict[str, Any]]] = None
     response_params: Optional[Union[str, Dict[str, Any]]] = None
+    headers: Optional[Union[str, Dict[str, Any]]] = None
 
 
 class UpstreamServiceUpdateIn(BaseModel):
@@ -48,6 +50,7 @@ class UpstreamServiceUpdateIn(BaseModel):
     method: Optional[str] = None
     request_params: Optional[Union[str, Dict[str, Any]]] = None
     response_params: Optional[Union[str, Dict[str, Any]]] = None
+    headers: Optional[Union[str, Dict[str, Any]]] = None
 
 
 def _normalize_base_url(url: str) -> str:
@@ -106,6 +109,7 @@ class MCPServiceManager:
         method = (payload.get("method") or "GET").upper()
         request_params = _parse_json_params(payload.get("request_params"))
         response_params = _parse_json_params(payload.get("response_params"))
+        headers = _parse_json_params(payload.get("headers"))
 
         svc = UpstreamService(
             name=name,
@@ -115,6 +119,7 @@ class MCPServiceManager:
             method=method,
             request_params=request_params,
             response_params=response_params,
+            headers=headers,
         )
         session.add(svc)
         session.commit()
@@ -143,6 +148,8 @@ class MCPServiceManager:
             svc.request_params = _parse_json_params(payload.get("request_params"))
         if "response_params" in payload:
             svc.response_params = _parse_json_params(payload.get("response_params"))
+        if "headers" in payload:
+            svc.headers = _parse_json_params(payload.get("headers"))
         
         session.add(svc)
         session.commit()
@@ -172,7 +179,8 @@ class MCPServiceManager:
                 "service_path": service.service_path,
                 "method": service.method,
                 "request_params": service.request_params or {},
-                "response_params": service.response_params or {}
+                "response_params": service.response_params or {},
+                "headers": service.headers or {}
             }
             tools.append(tool)
         

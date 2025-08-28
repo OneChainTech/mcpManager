@@ -15,7 +15,9 @@ from fastapi_mcp import FastApiMCP
 
 # 导入MCP服务管理器和服务管理API
 from mcp_service_manager import MCPServiceManager, UpstreamService
-from service_management_api import router as service_router, set_service_manager
+from service_management_api import router as service_router, admin_router, set_service_manager
+
+import time
 
 
 # 基础 FastAPI 应用
@@ -96,47 +98,95 @@ async def health() -> Dict[str, str]:
     summary="调用注册的 HTTP 服务接口并返回结果",
 )
 async def proxy_call(
-    method: Optional[str] = Body(default=None, embed=True, description="HTTP 方法，如 GET/POST/PUT/DELETE；若使用 service_id 可不填以采用默认"),
-    path: str = Body(..., embed=True, description="相对路径，如 /get 或 /anything"),
-    headers: Optional[Dict[str, str]] = Body(default=None, embed=True, description="可选请求头"),
-    params: Optional[Dict[str, Any]] = Body(default=None, embed=True, description="查询参数"),
-    json: Optional[Any] = Body(default=None, embed=True, description="JSON 请求体"),
-    timeout: Optional[float] = Body(default=None, embed=True, description="超时(秒)，不填走默认"),
-    service_id: Optional[int] = Body(default=None, embed=True, description="必需：选择注册的上游服务ID"),
+    request_data: Dict[str, Any] = Body(..., description="请求参数，支持多种格式"),
 ) -> JSONResponse:
-    method_upper = (method or "").upper()
-    allowed_methods = {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-    if method_upper and method_upper not in allowed_methods:
-        raise HTTPException(status_code=400, detail=f"不支持的方法: {method}")
-
-    # 必须指定 service_id 来调用用户注册的服务
-    if service_id is None:
-        raise HTTPException(status_code=400, detail="必须指定 service_id 来调用注册的服务")
+    """
+    通用的HTTP服务代理调用函数
     
-    # 处理MCP调用时的数据格式问题
-    # 如果参数是字符串形式的JSON，则解析它
+    支持多种调用格式：
+    1. 直接传递参数：{"method": "GET", "path": "/products", "service_id": 1, "params": {}}
+    2. MCP格式：{"service_id": 1, "method": "POST", "path": "/purchase", "json": {...}}
+    3. 嵌套格式：{"service_id": 1, "data": {"method": "GET", "path": "/products"}}
+    """
+    
+    # 提取参数，支持多种格式
+    method = request_data.get("method")
+    path = request_data.get("path")
+    service_id = request_data.get("service_id")
+    params = request_data.get("params")
+    json_data = request_data.get("json")
+    timeout = request_data.get("timeout")
+    headers = request_data.get("headers")
+    
+
+    
+    # 处理MCP客户端的各种调用格式
+    # 1. 直接格式：{"method": "GET", "path": "/products", "service_id": 1, "params": {}}
+    # 2. MCP格式：{"service_id": 1, "method": "POST", "path": "/purchase", "json": {...}}
+    # 3. 嵌套格式：{"service_id": 1, "data": {"method": "GET", "path": "/products"}}
+    # 4. 兼容格式：{"service_id": 1, "method": "GET", "path": "/products", "params": {}}
+    
+    # 处理嵌套格式
+    if "data" in request_data:
+        data = request_data["data"]
+        if isinstance(data, dict):
+            method = method or data.get("method")
+            path = path or data.get("path")
+            params = params or data.get("params")
+            json_data = json_data or data.get("json")
+            timeout = timeout or data.get("timeout")
+            headers = headers or data.get("headers")
+    
+    # 兼容MCP客户端的参数格式
+    # 如果params字段包含完整的请求参数，尝试从中提取
+    if isinstance(params, dict) and "method" in params:
+        mcp_params = params
+        method = method or mcp_params.get("method")
+        path = path or mcp_params.get("path")
+        json_data = json_data or mcp_params.get("json")
+        timeout = timeout or mcp_params.get("timeout")
+        headers = headers or mcp_params.get("headers")
+        # 重新设置params为实际的查询参数
+        params = mcp_params.get("params", {})
+    
+    # 处理字符串格式的JSON参数
     if isinstance(params, str):
         try:
-            import json
-            params = json.loads(params)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="无效的JSON格式参数")
+            import json as json_lib
+            params = json_lib.loads(params)
+        except:
+            pass  # 如果解析失败，保持原值
     
-    if isinstance(json, str):
+    if isinstance(json_data, str):
         try:
-            import json as pyjson
-            json = pyjson.loads(json)
-        except pyjson.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="无效的JSON格式数据")
+            import json as json_lib
+            json_data = json_lib.loads(json_data)
+        except:
+            pass  # 如果解析失败，保持原值
     
+    # 验证必需参数
+    if not service_id:
+        raise HTTPException(status_code=400, detail="缺少必需参数: service_id")
+    
+    # 确保service_id是整数类型
+    try:
+        service_id = int(service_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="service_id必须是有效的整数")
+    
+    # 获取服务配置
     with Session(engine) as session:
         svc = mcp_service_manager.get_service(service_id, session)
+        if not svc:
+            raise HTTPException(status_code=404, detail=f"服务不存在 (ID: {service_id})")
+        
         # 如果未显式传入 method/params，则应用服务默认
         if not method:
-            method_upper = (svc.method or "GET").upper()
+            method = svc.method or "GET"
+        method_upper = method.upper()
         if not params and svc.request_params:
             params = dict(svc.request_params)
-
+        
         # 构建完整的基础URL：服务地址
         base_url = svc.url
         # 去掉服务地址末尾的斜杠
@@ -150,14 +200,30 @@ async def proxy_call(
         req_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT_SECONDS
         # 使用服务配置中的service_path作为请求路径
         request_path = svc.service_path if svc.service_path else path
+        # 默认使用 JSON 请求头，避免客户端未显式设置时类型错误
+        if headers is None:
+            headers = {"Content-Type": "application/json"}
+        elif "Content-Type" not in headers and "content-type" not in {k.lower() for k in headers.keys()}:
+            headers["Content-Type"] = "application/json"
         resp = await client.request(
             method_upper,
             request_path,
             headers=headers,
             params=params,
-            json=json,
+            json=json_data,
             timeout=req_timeout,
         )
+        
+        # 返回响应
+        content_type = resp.headers.get("content-type", "").lower()
+        if "application/json" in content_type:
+            try:
+                return JSONResponse(status_code=resp.status_code, content=resp.json())
+            except:
+                return JSONResponse(status_code=resp.status_code, content={"raw": resp.text})
+        else:
+            return JSONResponse(status_code=resp.status_code, content={"raw": resp.text, "content_type": content_type})
+            
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"上游请求异常: {e}")
     finally:
@@ -166,16 +232,6 @@ async def proxy_call(
                 await client.aclose()
             except Exception:
                 pass
-
-    # 尽量返回上游的 JSON；若不是 JSON，则作为文本返回
-    content_type = resp.headers.get("content-type", "").lower()
-    if "application/json" in content_type:
-        try:
-            return JSONResponse(status_code=resp.status_code, content=resp.json())
-        except Exception:
-            return JSONResponse(status_code=resp.status_code, content={"raw": resp.text})
-    else:
-        return JSONResponse(status_code=resp.status_code, content={"raw": resp.text, "content_type": content_type})
 
 
 # =============================
@@ -217,6 +273,7 @@ set_service_manager(mcp_service_manager)
 
 # 包含服务管理API路由
 app.include_router(service_router)
+app.include_router(admin_router)
 
 
 # =============================
@@ -232,6 +289,33 @@ app.include_router(service_router)
 def get_tools(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """获取所有可用的工具（服务）列表"""
     return mcp_service_manager.get_tools(session)
+
+
+@app.get(
+    "/tools/empty-headers",
+    operation_id="tools_empty_headers",
+    summary="查询header为空的服务列表",
+)
+def get_tools_with_empty_headers(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+    """获取header为空的服务列表"""
+    services = mcp_service_manager.get_services_with_empty_headers(session)
+    tools = []
+    
+    for service in services:
+        tool = {
+            "id": service.id,
+            "name": service.name,
+            "summary": service.summary,
+            "url": service.url,
+            "service_path": service.service_path,
+            "method": service.method,
+            "request_params": service.request_params or {},
+            "response_params": service.response_params or {},
+            "headers": service.headers or {}
+        }
+        tools.append(tool)
+    
+    return tools
 
 
 # 使用 fastapi-mcp 将上述 FastAPI 端点暴露为 MCP 工具

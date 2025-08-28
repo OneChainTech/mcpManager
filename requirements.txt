@@ -1,6 +1,22 @@
+# MCP金融服务管理平台依赖包
+# 核心Web框架
 fastapi==0.116.1
+
+# ASGI服务器
 uvicorn==0.35.0
+
+# 数据库ORM
 sqlmodel==0.0.24
+
+# HTTP客户端
 httpx==0.28.1
+
+# MCP协议支持
 fastapi-mcp==0.4.0
+
+# 模板引擎
 jinja2==3.1.6
+
+# 可选：如果需要额外的功能
+# python-multipart==0.0.20  # 文件上传支持
+# python-dotenv==1.1.1      # 环境变量管理
