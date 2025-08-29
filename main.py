@@ -20,6 +20,11 @@ from service_management_api import router as service_router, admin_router, set_s
 import time
 
 
+def log_info(message: str):
+    """简单的日志记录"""
+    print(f"[INFO] {message}")
+
+
 # 基础 FastAPI 应用
 app = FastAPI(title="API → MCP Proxy")
 templates = Jinja2Templates(directory="templates")
@@ -107,12 +112,15 @@ async def proxy_call(
     1. 直接传递参数：{"method": "GET", "path": "/products", "service_id": 1, "params": {}}
     2. MCP格式：{"service_id": 1, "method": "POST", "path": "/purchase", "json": {...}}
     3. 嵌套格式：{"service_id": 1, "data": {"method": "GET", "path": "/products"}}
+    4. 通过服务名称：{"service_name": "product-purchase", "method": "POST", "path": "/purchase", "json": {...}}
+    5. 智能查找：{"method": "POST", "path": "/purchase", "json": {...}} (自动查找匹配的服务)
     """
     
     # 提取参数，支持多种格式
     method = request_data.get("method")
     path = request_data.get("path")
     service_id = request_data.get("service_id")
+    service_name = request_data.get("service_name")
     params = request_data.get("params")
     json_data = request_data.get("json")
     timeout = request_data.get("timeout")
@@ -165,8 +173,54 @@ async def proxy_call(
             pass  # 如果解析失败，保持原值
     
     # 验证必需参数
-    if not service_id:
-        raise HTTPException(status_code=400, detail="缺少必需参数: service_id")
+    if not service_id and not service_name:
+        # 智能服务查找：尝试通过path和method自动匹配服务
+        if path and method:
+            with Session(engine) as session:
+                # 查找所有服务
+                all_services = mcp_service_manager.list_services(session)
+                matched_service = None
+                
+                # 优先匹配：完全匹配path和method
+                for svc in all_services:
+                    if svc.service_path == path and svc.method.upper() == method.upper():
+                        matched_service = svc
+                        break
+                
+                # 次优先匹配：匹配path（忽略method）
+                if not matched_service:
+                    for svc in all_services:
+                        if svc.service_path == path:
+                            matched_service = svc
+                            break
+                
+                # 模糊匹配：path包含关系
+                if not matched_service:
+                    for svc in all_services:
+                        if path in svc.service_path or svc.service_path in path:
+                            matched_service = svc
+                            break
+                
+                if matched_service:
+                    service_id = matched_service.id
+                    service_name = matched_service.name
+                    log_info(f"智能匹配到服务: {matched_service.name} (ID: {matched_service.id})")
+                else:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"无法自动匹配服务，请明确指定 service_id 或 service_name。当前请求: {method} {path}"
+                    )
+        else:
+            raise HTTPException(status_code=400, detail="缺少必需参数: service_id 或 service_name，且无法自动匹配服务")
+    
+    # 通过服务名称查找服务ID
+    if not service_id and service_name:
+        with Session(engine) as session:
+            svc = mcp_service_manager.get_service_by_name(service_name, session)
+            if svc:
+                service_id = svc.id
+            else:
+                raise HTTPException(status_code=404, detail=f"服务不存在 (名称: {service_name})")
     
     # 确保service_id是整数类型
     try:
@@ -234,6 +288,165 @@ async def proxy_call(
                 pass
 
 
+@app.post(
+    "/mcp_call",
+    operation_id="mcp_simple_call",
+    summary="MCP客户端简化调用接口",
+    description="专门为MCP客户端设计的简化调用接口，支持多种调用格式"
+)
+async def mcp_simple_call(
+    request_data: Dict[str, Any] = Body(..., description="MCP调用参数")
+) -> JSONResponse:
+    """
+    MCP客户端简化调用接口
+    
+    支持多种调用格式：
+    1. 通过服务名称：{"service_name": "product-purchase", "method": "POST", "path": "/purchase", "json": {...}}
+    2. 通过服务ID：{"service_id": 1, "method": "POST", "path": "/purchase", "json": {...}}
+    3. 智能匹配：{"method": "POST", "path": "/purchase", "json": {...}} (自动查找匹配的服务)
+    4. 完整参数：{"service_name": "product-purchase", "method": "POST", "path": "/purchase", "params": {...}, "json": {...}}
+    """
+    
+    # 提取参数
+    method = request_data.get("method", "GET")
+    path = request_data.get("path", "")
+    service_id = request_data.get("service_id")
+    service_name = request_data.get("service_name")
+    params = request_data.get("params", {})
+    json_data = request_data.get("json", {})
+    timeout = request_data.get("timeout")
+    headers = request_data.get("headers", {})
+    
+    # 智能服务查找
+    if not service_id and not service_name:
+        if path and method:
+            with Session(engine) as session:
+                all_services = mcp_service_manager.list_services(session)
+                matched_service = None
+                
+                # 优先匹配：完全匹配path和method
+                for svc in all_services:
+                    if svc.service_path == path and svc.method.upper() == method.upper():
+                        matched_service = svc
+                        break
+                
+                # 次优先匹配：匹配path
+                if not matched_service:
+                    for svc in all_services:
+                        if svc.service_path == path:
+                            matched_service = svc
+                            break
+                
+                if matched_service:
+                    service_id = matched_service.id
+                    service_name = matched_service.name
+                    log_info(f"MCP智能匹配到服务: {matched_service.name} (ID: {matched_service.id})")
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"无法自动匹配服务，请明确指定 service_id 或 service_name。当前请求: {method} {path}"
+                    )
+        else:
+            raise HTTPException(status_code=400, detail="缺少必需参数: service_id 或 service_name，且无法自动匹配服务")
+    
+    # 通过服务名称查找服务ID
+    if not service_id and service_name:
+        with Session(engine) as session:
+            svc = mcp_service_manager.get_service_by_name(service_name, session)
+            if svc:
+                service_id = svc.id
+            else:
+                raise HTTPException(status_code=404, detail=f"服务不存在 (名称: {service_name})")
+    
+    # 确保service_id是整数类型
+    try:
+        service_id = int(service_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="service_id必须是有效的整数")
+    
+    # 获取服务配置
+    with Session(engine) as session:
+        svc = mcp_service_manager.get_service(service_id, session)
+        if not svc:
+            raise HTTPException(status_code=404, detail=f"服务不存在 (ID: {service_id})")
+        
+        # 应用服务默认配置
+        if not method:
+            method = svc.method or "GET"
+        if not params and svc.request_params:
+            params = dict(svc.request_params)
+        if not headers and svc.headers:
+            headers.update(svc.headers)
+        
+        # 构建完整的基础URL
+        base_url = svc.url
+        if base_url.endswith('/'):
+            base_url = base_url[:-1]
+        
+        client = httpx.AsyncClient(base_url=base_url, timeout=DEFAULT_TIMEOUT_SECONDS)
+        close_after = True
+        
+        try:
+            req_timeout = timeout if timeout is not None else DEFAULT_TIMEOUT_SECONDS
+            
+            # 构建请求URL
+            full_url = f"{base_url}{path}"
+            
+            # 发送请求
+            if method.upper() == "GET":
+                response = await client.get(
+                    full_url,
+                    params=params,
+                    headers=headers,
+                    timeout=req_timeout
+                )
+            elif method.upper() == "POST":
+                response = await client.post(
+                    full_url,
+                    json=json_data,
+                    params=params,
+                    headers=headers,
+                    timeout=req_timeout
+                )
+            elif method.upper() == "PUT":
+                response = await client.put(
+                    full_url,
+                    json=json_data,
+                    params=params,
+                    headers=headers,
+                    timeout=req_timeout
+                )
+            elif method.upper() == "DELETE":
+                response = await client.delete(
+                    full_url,
+                    params=params,
+                    headers=headers,
+                    timeout=req_timeout
+                )
+            else:
+                raise HTTPException(status_code=400, detail=f"不支持的HTTP方法: {method}")
+            
+            # 处理响应
+            try:
+                response_data = response.json()
+            except:
+                response_data = {"content": response.text, "status_code": response.status_code}
+            
+            return JSONResponse(
+                content=response_data,
+                status_code=response.status_code,
+                headers=dict(response.headers)
+            )
+            
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=408, detail="请求超时")
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=502, detail=f"上游服务请求失败: {str(e)}")
+        finally:
+            if close_after:
+                await client.aclose()
+
+
 # =============================
 # 配置 API
 # =============================
@@ -291,31 +504,31 @@ def get_tools(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     return mcp_service_manager.get_tools(session)
 
 
-@app.get(
-    "/tools/empty-headers",
-    operation_id="tools_empty_headers",
-    summary="查询header为空的服务列表",
-)
-def get_tools_with_empty_headers(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    """获取header为空的服务列表"""
-    services = mcp_service_manager.get_services_with_empty_headers(session)
-    tools = []
+# @app.get(
+#     "/tools/empty-headers",
+#     operation_id="tools_empty_headers",
+#     summary="查询header为空的服务列表",
+# )
+# def get_tools_with_empty_headers(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+#     """获取header为空的服务列表"""
+#     services = mcp_service_manager.get_services_with_empty_headers(session)
+#     tools = []
     
-    for service in services:
-        tool = {
-            "id": service.id,
-            "name": service.name,
-            "summary": service.summary,
-            "url": service.url,
-            "service_path": service.service_path,
-            "method": service.method,
-            "request_params": service.request_params or {},
-            "response_params": service.response_params or {},
-            "headers": service.headers or {}
-        }
-        tools.append(tool)
+#     for service in services:
+#         tool = {
+#             "id": service.id,
+#             "name": service.name,
+#             "summary": service.summary,
+#             "url": service.url,
+#             "service_path": service.service_path,
+#             "method": service.method,
+#             "request_params": service.request_params or {},
+#             "response_params": service.response_params or {},
+#             "headers": service.headers or {}
+#         }
+#         tools.append(tool)
     
-    return tools
+#     return tools
 
 
 # 使用 fastapi-mcp 将上述 FastAPI 端点暴露为 MCP 工具

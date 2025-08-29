@@ -100,6 +100,23 @@ class MCPServiceManager:
             raise HTTPException(status_code=404, detail="服务不存在")
         return svc
     
+    def get_service_by_name(self, service_name: str, session: Session) -> Optional[UpstreamService]:
+        """通过服务名称获取服务"""
+        return session.exec(select(UpstreamService).where(UpstreamService.name == service_name)).first()
+    
+    def get_service_by_name_or_id(self, service_identifier: Union[str, int], session: Session) -> UpstreamService:
+        """通过服务名称或ID获取服务"""
+        if isinstance(service_identifier, int) or str(service_identifier).isdigit():
+            # 如果是数字，按ID查找
+            service_id = int(service_identifier)
+            return self.get_service(service_id, session)
+        else:
+            # 如果是字符串，按名称查找
+            svc = self.get_service_by_name(service_identifier, session)
+            if not svc:
+                raise HTTPException(status_code=404, detail=f"服务不存在 (名称: {service_identifier})")
+            return svc
+    
     def create_service(self, payload: Dict[str, Any], session: Session) -> UpstreamService:
         """创建新服务"""
         name = payload.get("name", "")
