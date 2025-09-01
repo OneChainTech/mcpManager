@@ -155,6 +155,25 @@
       </div>
     </div>
 
+    <!-- 删除确认弹窗（与页面风格一致） -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100">
+          <div class="px-6 py-4 border-b">
+            <h3 class="text-lg font-semibold text-slate-800">确认删除</h3>
+          </div>
+          <div class="px-6 py-4 text-slate-700">
+            确定要删除服务 <span id="confirmServiceName" class="font-semibold text-slate-900"></span> 吗？此操作不可恢复。
+          </div>
+          <div class="px-6 py-4 border-t flex justify-end gap-3">
+            <button id="cancelDeleteBtn" class="px-3 py-1.5 rounded border hover:bg-gray-50">取消</button>
+            <button id="confirmDeleteBtn" class="px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700">删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
       // 状态
       let allServices = [];
@@ -185,7 +204,7 @@
           const headersJson = JSON.stringify(s.headers || {}, null, 2);
           tr.innerHTML = `
             <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.name}" data-id="${s.id}" data-field="name"></td>
-            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.summary || ''}" data-id="${s.id}" data-field="summary"></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="summary">${s.summary || ''}</textarea></td>
             <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.url}" data-id="${s.id}" data-field="url"></td>
             <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.service_path || ''}" data-id="${s.id}" data-field="service_path"></td>
             <td class="px-3 py-2">
@@ -215,6 +234,33 @@
         document.getElementById('nextPage').disabled = currentPage >= totalPages;
       }
 
+      // 自定义删除确认弹窗
+      function showConfirmModal(serviceName) {
+        return new Promise((resolve) => {
+          const modal = document.getElementById('confirmModal');
+          const nameEl = document.getElementById('confirmServiceName');
+          const confirmBtn = document.getElementById('confirmDeleteBtn');
+          const cancelBtn = document.getElementById('cancelDeleteBtn');
+          const backdrop = modal.querySelector('.absolute.inset-0');
+
+          nameEl.textContent = serviceName || '';
+          modal.classList.remove('hidden');
+
+          const cleanup = () => {
+            modal.classList.add('hidden');
+            confirmBtn.onclick = null;
+            cancelBtn.onclick = null;
+            backdrop.onclick = null;
+            document.onkeydown = null;
+          };
+
+          confirmBtn.onclick = () => { cleanup(); resolve(true); };
+          cancelBtn.onclick = () => { cleanup(); resolve(false); };
+          backdrop.onclick = () => { cleanup(); resolve(false); };
+          document.onkeydown = (e) => { if (e.key === 'Escape') { cleanup(); resolve(false); } };
+        });
+      }
+
       function bindRowActions() {
         const tbody = document.getElementById('svcTbody');
         tbody.querySelectorAll('button').forEach(btn => {
@@ -223,7 +269,10 @@
             const id = btn.getAttribute('data-id');
             const act = btn.getAttribute('data-act');
             if (act === 'delete') {
-              if (confirm('确定要删除这个服务吗？')) {
+              const nameEl = tbody.querySelector(`input[data-id="${id}"][data-field="name"]`);
+              const svcName = nameEl ? nameEl.value : '该服务';
+              const ok = await showConfirmModal(svcName);
+              if (ok) {
                 await fetch(`/api/services/${id}`, { method: 'DELETE' });
                 await loadServices();
               }
