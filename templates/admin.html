@@ -138,13 +138,13 @@
               <thead>
                 <tr class="text-left border-b bg-gray-50">
                   <th class="px-3 py-2 min-w-[120px]">名称</th>
-                  <th class="px-3 py-2 min-w-[200px]">描述</th>
                   <th class="px-3 py-2 min-w-[180px]">地址</th>
                   <th class="px-3 py-2 min-w-[120px]">路径</th>
                   <th class="px-3 py-2 min-w-[80px]">方法</th>
                   <th class="px-3 py-2 min-w-[250px]">请求参数</th>
                   <th class="px-3 py-2 min-w-[250px]">响应参数</th>
                   <th class="px-3 py-2 min-w-[200px]">请求头</th>
+                  <th class="px-3 py-2 min-w-[200px]">描述</th>
                   <th class="px-3 py-2 min-w-[120px] sticky right-0 bg-white">操作</th>
                 </tr>
               </thead>
@@ -204,7 +204,6 @@
           const headersJson = JSON.stringify(s.headers || {}, null, 2);
           tr.innerHTML = `
             <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.name}" data-id="${s.id}" data-field="name"></td>
-            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="summary">${s.summary || ''}</textarea></td>
             <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.url}" data-id="${s.id}" data-field="url"></td>
             <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.service_path || ''}" data-id="${s.id}" data-field="service_path"></td>
             <td class="px-3 py-2">
@@ -216,6 +215,7 @@
             <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="request_params">${JSON.stringify(s.request_params||{}, null, 2)}</textarea></td>
             <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="response_params">${JSON.stringify(s.response_params||{}, null, 2)}</textarea></td>
             <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="headers">${headersJson}</textarea></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="summary">${s.summary || ''}</textarea></td>
             <td class="px-3 py-2 sticky right-0 bg-white">
               <div class="flex items-center gap-2">
                 <button class="px-2 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 transition-colors" data-act="save" data-id="${s.id}">保存</button>
