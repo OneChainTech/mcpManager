@@ -5,11 +5,11 @@ import httpx
 from fastapi import FastAPI, HTTPException, Body, Depends
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
-from fastapi.routing import APIRoute
+
+
 from sqlmodel import SQLModel, Field, Session, create_engine, select
-from sqlalchemy import Column, JSON as SAJSON
-import json as pyjson
+
+
 from pydantic import BaseModel
 from fastapi_mcp import FastApiMCP
 
@@ -17,7 +17,7 @@ from fastapi_mcp import FastApiMCP
 from mcp_service_manager import MCPServiceManager, UpstreamService
 from service_management_api import router as service_router, admin_router, set_service_manager
 
-import time
+
 
 
 def log_info(message: str):
@@ -504,31 +504,7 @@ def get_tools(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     return mcp_service_manager.get_tools(session)
 
 
-# @app.get(
-#     "/tools/empty-headers",
-#     operation_id="tools_empty_headers",
-#     summary="查询header为空的服务列表",
-# )
-# def get_tools_with_empty_headers(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-#     """获取header为空的服务列表"""
-#     services = mcp_service_manager.get_services_with_empty_headers(session)
-#     tools = []
-    
-#     for service in services:
-#         tool = {
-#             "id": service.id,
-#             "name": service.name,
-#             "summary": service.summary,
-#             "url": service.url,
-#             "service_path": service.service_path,
-#             "method": service.method,
-#             "request_params": service.request_params or {},
-#             "response_params": service.response_params or {},
-#             "headers": service.headers or {}
-#         }
-#         tools.append(tool)
-    
-#     return tools
+
 
 
 # 使用 fastapi-mcp 将上述 FastAPI 端点暴露为 MCP 工具

@@ -22,7 +22,9 @@
             <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-finance-green to-green-500 text-white flex items-center justify-center text-sm font-bold">SR</div>
             <h2 class="text-xl font-semibold text-slate-800">服务注册</h2>
           </div>
-          <button id="toggleForm" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm"><span id="toggleText">展开</span></button>
+          <button id="toggleForm" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">
+            <span id="toggleText">展开</span>
+          </button>
         </div>
         <div id="serviceForm" class="hidden mt-6">
           <form id="svcForm" class="space-y-6">
@@ -30,11 +32,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label class="block text-sm font-medium mb-1">服务名称</label>
-                <input id="svcName" class="w-full border rounded px-3 py-2" placeholder="example-service" value="product-purchase" />
+                <input id="svcName" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="product-purchase" value="product-purchase" />
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">HTTP 方法</label>
-                <select id="svcMethod" class="w-full border rounded px-3 py-2">
+                <select id="svcMethod" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   <option value="GET">GET</option>
                   <option value="POST" selected>POST</option>
                 </select>
@@ -44,26 +46,28 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label class="block text-sm font-medium mb-1">服务地址</label>
-                <input id="svcUrl" class="w-full border rounded px-3 py-2" placeholder="http://127.0.0.1:9001" value="http://127.0.0.1:9001" />
+                <input id="svcUrl" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="http://127.0.0.1:9001" value="http://127.0.0.1:9001" />
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">服务路径</label>
-                <input id="svcServicePath" class="w-full border rounded px-3 py-2" placeholder="/products" value="/purchase" />
+                <input id="svcServicePath" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="/purchase" value="/purchase" />
               </div>
             </div>
             <!-- 新增：请求头（JSON） -->
             <div>
               <label class="block text-sm font-medium mb-1">请求头（JSON）</label>
-              <textarea id="svcHeaders" class="w-full border rounded px-3 py-2 font-mono text-sm" rows="2" placeholder='{"Content-Type":"application/json"}'>{"Content-Type":"application/json"}</textarea>
+              <textarea id="svcHeaders" class="w-full border rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder='{"Content-Type":"application/json"}'>{"Content-Type":"application/json"}</textarea>
             </div>
             <!-- 第三行：请求/响应参数 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label class="block text-sm font-medium mb-1">请求参数（JSON）</label>
-                <textarea id="svcRequestParams" class="w-full border rounded px-3 py-2 font-mono text-sm" rows="3" placeholder='{
-  "product_id": string,
-  "user_id": string,
-  "amount": int
+                              <div>
+                  <label class="block text-sm font-medium mb-1">请求参数（JSON）</label>
+                  <textarea id="svcRequestParams" class="w-full border rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="3" placeholder='{
+  "product_id": "FUND001",
+  "user_id": "CURRENT_USER",
+  "amount": 10000,
+  "payment_method": "bank_transfer",
+  "risk_agreement": true
 }'>{
   "product_id": "FUND001",
   "user_id": "CURRENT_USER",
@@ -71,12 +75,16 @@
   "payment_method": "bank_transfer",
   "risk_agreement": true
 }</textarea>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">响应参数（JSON）</label>
-                <textarea id="svcResponseParams" class="w-full border rounded px-3 py-2 font-mono text-sm" rows="3" placeholder='{
-  "status": string,
-  "order_id": string
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">响应参数（JSON）</label>
+                  <textarea id="svcResponseParams" class="w-full border rounded px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="3" placeholder='{
+  "service_name": "product-purchase",
+  "order_id": "ORDER_XXXX",
+  "product_id": "FUND001",
+  "amount": 10000,
+  "status": "processing",
+  "message": "订单已提交，正在处理中"
 }'>{
   "service_name": "product-purchase",
   "order_id": "ORDER_XXXX",
@@ -85,16 +93,16 @@
   "status": "processing",
   "message": "订单已提交，正在处理中"
 }</textarea>
-              </div>
+                </div>
             </div>
             <!-- 第四行：描述 -->
-            <div>
-              <label class="block text-sm font-medium mb-1">服务描述</label>
-              <textarea id="svcSummary" class="w-full border rounded px-3 py-2" rows="3" placeholder="服务功能描述">理财产品购买服务，支持多种支付方式和风险协议确认</textarea>
-            </div>
+                          <div>
+                <label class="block text-sm font-medium mb-1">服务描述</label>
+                <textarea id="svcSummary" class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="3" placeholder="理财产品购买服务，支持多种支付方式和风险协议确认">理财产品购买服务，支持多种支付方式和风险协议确认</textarea>
+              </div>
             <div class="flex items-center gap-3 pt-2">
-              <button type="submit" class="px-4 py-2 rounded bg-green-600 text-white">添加服务</button>
-              <button type="button" id="clearBtn" class="px-4 py-2 rounded bg-gray-600 text-white">清空</button>
+              <button type="submit" class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition-colors">添加服务</button>
+              <button type="button" id="clearBtn" class="px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700 transition-colors">清空</button>
               <span id="svcMsg" class="text-sm text-green-700"></span>
             </div>
           </form>
@@ -116,13 +124,13 @@
               <option value="20">20</option>
               <option value="50">50</option>
             </select>
-            <button id="refreshBtn" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm">刷新</button>
+            <button id="refreshBtn" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">刷新</button>
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 mb-2 text-sm">
-          <button id="prevPage" class="px-2 py-1 rounded border">上一页</button>
+          <button id="prevPage" class="px-2 py-1 rounded border hover:bg-gray-50 transition-colors">上一页</button>
           <span id="pageInfo" class="text-slate-600">第 1 页，共 1 页</span>
-          <button id="nextPage" class="px-2 py-1 rounded border">下一页</button>
+          <button id="nextPage" class="px-2 py-1 rounded border hover:bg-gray-50 transition-colors">下一页</button>
         </div>
         <div class="relative">
           <div class="overflow-x-auto">
@@ -173,26 +181,26 @@
         const pageItems = allServices.slice(start, start + pageSize);
         pageItems.forEach(s => {
           const tr = document.createElement('tr');
-          tr.className = 'border-b last:border-b-0';
+          tr.className = 'border-b last:border-b-0 hover:bg-gray-50 transition-colors';
           const headersJson = JSON.stringify(s.headers || {}, null, 2);
           tr.innerHTML = `
-            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1" value="${s.name}" data-id="${s.id}" data-field="name"></td>
-            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1" value="${s.summary || ''}" data-id="${s.id}" data-field="summary"></td>
-            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs" value="${s.url}" data-id="${s.id}" data-field="url"></td>
-            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs" value="${s.service_path || ''}" data-id="${s.id}" data-field="service_path"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.name}" data-id="${s.id}" data-field="name"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.summary || ''}" data-id="${s.id}" data-field="summary"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.url}" data-id="${s.id}" data-field="url"></td>
+            <td class="px-3 py-2"><input class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="${s.service_path || ''}" data-id="${s.id}" data-field="service_path"></td>
             <td class="px-3 py-2">
-              <select class="w-full border rounded px-2 py-1" data-id="${s.id}" data-field="method">
+              <select class="w-full border rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" data-id="${s.id}" data-field="method">
                 <option value="GET" ${s.method==='GET'?'selected':''}>GET</option>
                 <option value="POST" ${s.method==='POST'?'selected':''}>POST</option>
               </select>
             </td>
-            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs" rows="2" data-id="${s.id}" data-field="request_params">${JSON.stringify(s.request_params||{}, null, 2)}</textarea></td>
-            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs" rows="2" data-id="${s.id}" data-field="response_params">${JSON.stringify(s.response_params||{}, null, 2)}</textarea></td>
-            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs" rows="2" data-id="${s.id}" data-field="headers">${headersJson}</textarea></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="request_params">${JSON.stringify(s.request_params||{}, null, 2)}</textarea></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="response_params">${JSON.stringify(s.response_params||{}, null, 2)}</textarea></td>
+            <td class="px-3 py-2"><textarea class="w-full border rounded px-2 py-1 font-mono text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" data-id="${s.id}" data-field="headers">${headersJson}</textarea></td>
             <td class="px-3 py-2 sticky right-0 bg-white">
               <div class="flex items-center gap-2">
-                <button class="px-2 py-1 rounded bg-green-600 text-white text-xs" data-act="save" data-id="${s.id}">保存</button>
-                <button class="px-2 py-1 rounded bg-red-600 text-white text-xs" data-act="delete" data-id="${s.id}">删除</button>
+                <button class="px-2 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 transition-colors" data-act="save" data-id="${s.id}">保存</button>
+                <button class="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700 transition-colors" data-act="delete" data-id="${s.id}">删除</button>
               </div>
             </td>`;
           tbody.appendChild(tr);
@@ -215,8 +223,10 @@
             const id = btn.getAttribute('data-id');
             const act = btn.getAttribute('data-act');
             if (act === 'delete') {
-              await fetch(`/api/services/${id}`, { method: 'DELETE' });
-              await loadServices();
+              if (confirm('确定要删除这个服务吗？')) {
+                await fetch(`/api/services/${id}`, { method: 'DELETE' });
+                await loadServices();
+              }
               return;
             }
             if (act === 'save') {
@@ -266,7 +276,19 @@
 
       // 事件绑定
       document.getElementById('svcForm').addEventListener('submit', addService);
-      document.getElementById('clearBtn').addEventListener('click', () => document.getElementById('svcForm').reset());
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        // 真正的清空所有字段
+        document.getElementById('svcName').value = '';
+        document.getElementById('svcSummary').value = '';
+        document.getElementById('svcUrl').value = '';
+        document.getElementById('svcServicePath').value = '';
+        document.getElementById('svcMethod').value = 'GET';
+        document.getElementById('svcHeaders').value = '';
+        document.getElementById('svcRequestParams').value = '';
+        document.getElementById('svcResponseParams').value = '';
+        showMsg(document.getElementById('svcMsg'), '已清空');
+      });
+
       document.getElementById('refreshBtn').addEventListener('click', loadServices);
       document.getElementById('pageSize').addEventListener('change', () => { pageSize = parseInt(document.getElementById('pageSize').value||'10'); currentPage = 1; renderServices(); updatePagination(); });
       document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderServices(); updatePagination(); } });

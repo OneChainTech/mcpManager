@@ -157,7 +157,7 @@ if __name__ == "__main__":
     import uvicorn
 
     host = os.getenv("TEST_HOST", "127.0.0.1")
-    port = int(os.getenv("TEST_PORT", "9001"))
+    port = int(os.getenv("TEST_PORT", "9000"))
     
     print("🚀 启动理财产品服务 (JSON格式)")
     print(f"地址: http://{host}:{port}")
