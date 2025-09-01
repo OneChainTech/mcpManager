@@ -197,7 +197,14 @@ class MCPServiceManager:
                 "method": service.method,
                 "request_params": service.request_params or {},
                 "response_params": service.response_params or {},
-                "headers": service.headers or {}
+                "headers": service.headers or {},
+                "example_request": {
+                    "method": service.method,
+                    "path": service.service_path,
+                    "service_id": service.id,
+                    "params": service.request_params or {},
+                    "headers": service.headers or {}
+                }
             }
             tools.append(tool)
         

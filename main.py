@@ -206,10 +206,11 @@ async def proxy_call(
                     service_name = matched_service.name
                     log_info(f"智能匹配到服务: {matched_service.name} (ID: {matched_service.id})")
                 else:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"无法自动匹配服务，请明确指定 service_id 或 service_name。当前请求: {method} {path}"
-                    )
+                    # 提供更友好的错误信息，包含可用的服务列表
+                    available_services = [f"{svc.name} ({svc.method} {svc.service_path})" for svc in all_services]
+                    error_msg = f"无法自动匹配服务。当前请求: {method} {path}\n"
+                    error_msg += f"可用的服务: {', '.join(available_services)}"
+                    raise HTTPException(status_code=400, detail=error_msg)
         else:
             raise HTTPException(status_code=400, detail="缺少必需参数: service_id 或 service_name，且无法自动匹配服务")
     
@@ -502,6 +503,37 @@ app.include_router(admin_router)
 def get_tools(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """获取所有可用的工具（服务）列表"""
     return mcp_service_manager.get_tools(session)
+
+
+@app.get(
+    "/tools/{service_id}",
+    operation_id="get_tool_detail",
+    summary="获取指定服务的详细信息",
+)
+def get_tool_detail(service_id: int, session: Session = Depends(get_db)) -> Dict[str, Any]:
+    """获取指定服务的详细信息"""
+    svc = mcp_service_manager.get_service(service_id, session)
+    if not svc:
+        raise HTTPException(status_code=404, detail=f"服务不存在 (ID: {service_id})")
+    
+    return {
+        "id": svc.id,
+        "name": svc.name,
+        "summary": svc.summary,
+        "url": svc.url,
+        "service_path": svc.service_path,
+        "method": svc.method,
+        "request_params": svc.request_params or {},
+        "response_params": svc.response_params or {},
+        "headers": svc.headers or {},
+        "example_request": {
+            "method": svc.method,
+            "path": svc.service_path,
+            "service_id": svc.id,
+            "params": svc.request_params or {},
+            "headers": svc.headers or {}
+        }
+    }
 
 
 
