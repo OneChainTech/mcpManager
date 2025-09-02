@@ -1,23 +1,19 @@
-from typing import Optional, Dict, Any, List, Iterator, Union
+from typing import Optional, Dict, Any, List, Iterator
 
 import os
 import httpx
 from fastapi import FastAPI, HTTPException, Body, Depends
-from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 
 
 from sqlmodel import SQLModel, Field, Session, create_engine, select
 
 
-from pydantic import BaseModel
 from fastapi_mcp import FastApiMCP
 
 # 导入MCP服务管理器和服务管理API
-from mcp_service_manager import MCPServiceManager, UpstreamService
+from mcp_service_manager import MCPServiceManager
 from service_management_api import router as service_router, admin_router, set_service_manager
-
-
 
 
 def log_info(message: str):
@@ -27,7 +23,6 @@ def log_info(message: str):
 
 # 基础 FastAPI 应用
 app = FastAPI(title="API → MCP Proxy")
-templates = Jinja2Templates(directory="templates")
 
 # =============================
 # 数据库与模型
@@ -50,22 +45,6 @@ def init_db() -> None:
             session.commit()
 
 
-def migrate_upstream_table() -> None:
-    # 轻量迁移：为已有表补充新增列（http_method、default_params）
-    try:
-        with engine.connect() as conn:
-            rows = conn.exec_driver_sql("PRAGMA table_info('upstreamservice')").fetchall()
-            columns = {row[1] for row in rows}
-            if "http_method" not in columns:
-                conn.exec_driver_sql("ALTER TABLE upstreamservice ADD COLUMN http_method TEXT DEFAULT 'GET'")
-            if "default_params" not in columns:
-                # SQLite 无严格 JSON 类型，这里作为 TEXT 兼容存储 JSON 字符串
-                conn.exec_driver_sql("ALTER TABLE upstreamservice ADD COLUMN default_params JSON")
-    except Exception:
-        # 迁移失败时忽略（开发模式），避免阻断启动
-        pass
-
-
 def get_db() -> Iterator[Session]:
     with Session(engine) as session:
         yield session
@@ -75,18 +54,6 @@ def get_db() -> Iterator[Session]:
 def on_startup() -> None:
     # 初始化数据库与默认配置
     init_db()
-    migrate_upstream_table()
-
-
-def _normalize_base_url(url: str) -> str:
-    if not url:
-        return url
-    u = url.strip()
-    # 去掉尾部斜杠，统一小写协议和主机部分影响较小，这里仅统一整体小写以简单处理
-    if u.endswith('/'):
-        u = u[:-1]
-    return u
-
 
 # 读取默认超时从环境变量
 DEFAULT_TIMEOUT_SECONDS = float(os.getenv("UPSTREAM_TIMEOUT", "15"))
@@ -504,43 +471,7 @@ def get_tools(session: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """获取所有可用的工具（服务）列表"""
     return mcp_service_manager.get_tools(session)
 
-
-@app.get(
-    "/tools/{service_id}",
-    operation_id="get_tool_detail",
-    summary="获取指定服务的详细信息",
-)
-def get_tool_detail(service_id: int, session: Session = Depends(get_db)) -> Dict[str, Any]:
-    """获取指定服务的详细信息"""
-    svc = mcp_service_manager.get_service(service_id, session)
-    if not svc:
-        raise HTTPException(status_code=404, detail=f"服务不存在 (ID: {service_id})")
-    
-    return {
-        "id": svc.id,
-        "name": svc.name,
-        "summary": svc.summary,
-        "url": svc.url,
-        "service_path": svc.service_path,
-        "method": svc.method,
-        "request_params": svc.request_params or {},
-        "response_params": svc.response_params or {},
-        "headers": svc.headers or {},
-        "example_request": {
-            "method": svc.method,
-            "path": svc.service_path,
-            "service_id": svc.id,
-            "params": svc.request_params or {},
-            "headers": svc.headers or {}
-        }
-    }
-
-
-
-
-
-# 使用 fastapi-mcp 将上述 FastAPI 端点暴露为 MCP 工具
-# 优先使用支持 Streamable HTTP 的挂载方式
+# 使用 fastapi-mcp 将上述 FastAPI 端点暴露为 MCP 工具（优先使用支持 Streamable HTTP 的挂载方式）
 mcp = FastApiMCP(
     app,
     name="api-proxy-mcp",
