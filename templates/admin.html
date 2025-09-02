@@ -125,6 +125,7 @@
               <option value="50">50</option>
             </select>
             <button id="refreshBtn" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">刷新</button>
+            <button id="mcpHelpBtn" class="px-3 py-1.5 rounded border text-sm hover:bg-gray-50 transition-colors">配置 MCP 说明</button>
           </div>
         </div>
         <div class="flex items-center justify-end gap-2 mb-2 text-sm">
@@ -169,6 +170,38 @@
           <div class="px-6 py-4 border-t flex justify-end gap-3">
             <button id="cancelDeleteBtn" class="px-3 py-1.5 rounded border hover:bg-gray-50">取消</button>
             <button id="confirmDeleteBtn" class="px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700">删除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MCP 配置说明弹窗 -->
+    <div id="mcpHelpModal" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-gray-100">
+          <div class="px-6 py-4 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-slate-800">MCP 配置</h3>
+            <button id="mcpHelpCloseBtn" class="px-2 py-1 rounded hover:bg-gray-100">✕</button>
+          </div>
+          <div class="px-6 py-4 text-slate-700 space-y-4">
+            <p class="text-sm">在客户端的 <span class="font-mono">mcp.json</span> 中添加如下配置，指向本服务的 <span class="font-mono">/mcp</span> 路径：</p>
+            <div class="bg-gray-50 border rounded p-3 overflow-auto">
+              <pre class="text-xs leading-relaxed"><code>{
+  "mcpServers": {
+    "api-proxy-mcp": {
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}</code></pre>
+            </div>
+            <ul class="list-disc pl-5 mt-1 text-sm text-slate-700 space-y-1">
+              <li>确保本服务已启动：访问 <span class="font-mono">/health</span> 返回 <span class="font-mono">{"status":"ok"}</span>。</li>
+              <li>根据实际部署修改端口或域名。</li>
+              <li>保存后重启你的 MCP 客户端/编辑器。</li>
+            </ul>
+          </div>
+          <div class="px-6 py-4 border-t flex justify-end gap-3">
           </div>
         </div>
       </div>
@@ -349,6 +382,22 @@
         if (isHidden) { form.classList.remove('hidden'); t.textContent = '收起'; }
         else { form.classList.add('hidden'); t.textContent = '展开'; }
       });
+
+      // MCP 说明弹窗逻辑
+      (function(){
+        const modal = document.getElementById('mcpHelpModal');
+        const backdrop = modal.querySelector('.absolute.inset-0');
+        const openBtn = document.getElementById('mcpHelpBtn');
+        const closeBtn = document.getElementById('mcpHelpCloseBtn');
+        const okBtn = document.getElementById('mcpHelpOkBtn');
+        function open(){ modal.classList.remove('hidden'); }
+        function close(){ modal.classList.add('hidden'); }
+        openBtn?.addEventListener('click', open);
+        closeBtn?.addEventListener('click', close);
+        okBtn?.addEventListener('click', close);
+        backdrop?.addEventListener('click', close);
+        document.addEventListener('keydown', (e) => { if (!modal.classList.contains('hidden') && e.key === 'Escape') close(); });
+      })();
 
       // 初始化
       window.onload = loadServices;
