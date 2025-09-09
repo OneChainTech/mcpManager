@@ -236,6 +236,17 @@ async def proxy_call(
             timeout=req_timeout,
         )
         
+        # 记录服务调用统计
+        try:
+            import httpx as stats_client
+            await stats_client.AsyncClient().post(
+                "http://127.0.0.1:8000/api/monitoring/record_call",
+                json={"service_name": svc.name},
+                timeout=1.0
+            )
+        except:
+            pass  # 忽略统计记录错误，不影响主流程
+        
         # 返回响应
         content_type = resp.headers.get("content-type", "").lower()
         if "application/json" in content_type:
