@@ -73,7 +73,6 @@ def get_mcp_status() -> Dict[str, Any]:
     try:
         # 检查主服务状态
         main_status = "running"
-        test_status = "running"
         
         # 检查进程是否存在
         if os.path.exists(".main.pid"):
@@ -85,16 +84,6 @@ def get_mcp_status() -> Dict[str, Any]:
                     main_status = "stopped"
         else:
             main_status = "stopped"
-            
-        if os.path.exists(".test.pid"):
-            with open(".test.pid", "r") as f:
-                test_pid = int(f.read().strip())
-                try:
-                    os.kill(test_pid, 0)  # 检查进程是否存在
-                except OSError:
-                    test_status = "stopped"
-        else:
-            test_status = "stopped"
         
         return {
             "mcp_main_service": {
@@ -102,18 +91,12 @@ def get_mcp_status() -> Dict[str, Any]:
                 "port": 8000,
                 "url": "http://127.0.0.1:8000"
             },
-            "test_service": {
-                "status": test_status,
-                "port": 9000,
-                "url": "http://127.0.0.1:9000"
-            },
             "timestamp": int(time.time())
         }
     except Exception as e:
         return {
             "error": str(e),
             "mcp_main_service": {"status": "unknown"},
-            "test_service": {"status": "unknown"},
             "timestamp": int(time.time())
         }
 
