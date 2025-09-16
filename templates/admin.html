@@ -16,7 +16,7 @@
         <h1 class="text-3xl font-bold text-slate-800">金融服务MCP管理平台</h1>
       </div>
 
-      <!-- 服务监控区域（默认收起） -->
+      <!-- 服务监控区域（默认展开） -->
       <div class="bg-white rounded-2xl shadow p-6 border border-gray-100 mb-8">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
@@ -28,13 +28,13 @@
             <h2 class="text-xl font-semibold text-slate-800">服务监控</h2>
           </div>
           <div class="flex items-center gap-2">
-            <button id="refreshMonitoring" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors hidden">刷新</button>
+            <button id="refreshMonitoring" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">刷新</button>
             <button id="toggleMonitoring" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">
-              <span id="toggleMonitoringText">展开</span>
+              <span id="toggleMonitoringText">收起</span>
             </button>
           </div>
         </div>
-        <div id="monitoringContent" class="hidden mt-6">
+        <div id="monitoringContent" class="mt-6">
           <!-- 服务监控总览 -->
           <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex items-center justify-between mb-4">
@@ -601,7 +601,10 @@
       })();
 
       // 初始化
-      window.onload = loadServices;
+      window.onload = () => {
+        loadServices();
+        loadMonitoringData();
+      };
     </script>
   </body>
 </html>
